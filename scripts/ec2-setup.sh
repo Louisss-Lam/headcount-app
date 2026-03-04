@@ -26,17 +26,14 @@ echo "[1/7] Installing system dependencies..."
 if [ "$OS" = "amzn" ]; then
     sudo dnf update -y
     sudo dnf install -y gcc-c++ make git nginx
-    # Install Node.js 18 via dnf module
-    sudo dnf install -y nodejs18 nodejs18-npm || {
-        # Fallback: install via NodeSource
-        curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-        sudo dnf install -y nodejs
-    }
+    # Install Node.js 20 LTS via NodeSource
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+    sudo dnf install -y nodejs
 elif [ "$OS" = "ubuntu" ]; then
     sudo apt-get update -y
     sudo apt-get install -y build-essential git nginx
-    # Install Node.js 18 via NodeSource
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    # Install Node.js 20 LTS via NodeSource
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
 else
     echo "Unsupported OS: $OS. Please use Amazon Linux 2023 or Ubuntu 22.04."
