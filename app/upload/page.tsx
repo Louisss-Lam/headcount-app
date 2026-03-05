@@ -26,6 +26,7 @@ function UploadPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [managers, setManagers] = useState<ManagerResult[]>([]);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [notificationInfo, setNotificationInfo] = useState<string | null>(null);
 
   // Fetch existing managers on page load
   useEffect(() => {
@@ -47,6 +48,7 @@ function UploadPageContent() {
     setIsLoading(true);
     setError(null);
     setUploadMessage(null);
+    setNotificationInfo(null);
 
     try {
       const formData = new FormData();
@@ -64,6 +66,18 @@ function UploadPageContent() {
       }
 
       setUploadMessage(data.message);
+
+      // Show notification email status
+      const sent = data.emailsSent ?? 0;
+      const failed = data.emailsFailed ?? 0;
+      if (sent > 0 || failed > 0) {
+        let info = `${sent} notification email(s) sent to managers.`;
+        if (failed > 0) {
+          info += ` ${failed} email(s) failed.`;
+        }
+        setNotificationInfo(info);
+      }
+
       // Refresh manager list after upload
       const mgrRes = await fetch('/api/managers');
       const mgrData = await mgrRes.json();
@@ -109,6 +123,12 @@ function UploadPageContent() {
       {uploadMessage && (
         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
           {uploadMessage}
+        </div>
+      )}
+
+      {notificationInfo && (
+        <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
+          {notificationInfo}
         </div>
       )}
 

@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 interface ParsedRow {
   agentName: string;
   managerName: string;
+  managerEmail: string;
 }
 
 export function parseExcelBuffer(buffer: Buffer): ParsedRow[] {
@@ -20,7 +21,10 @@ export function parseExcelBuffer(buffer: Buffer): ParsedRow[] {
     h.toLowerCase().includes('agent')
   );
   const managerCol = headers.find((h) =>
-    h.toLowerCase().includes('manager')
+    h.toLowerCase().includes('manager') && !h.toLowerCase().includes('email')
+  );
+  const emailCol = headers.find((h) =>
+    h.toLowerCase().includes('email')
   );
 
   if (!agentCol) {
@@ -38,8 +42,9 @@ export function parseExcelBuffer(buffer: Buffer): ParsedRow[] {
   for (const row of rows) {
     const agentName = String(row[agentCol] ?? '').trim();
     const managerName = String(row[managerCol] ?? '').trim();
+    const managerEmail = emailCol ? String(row[emailCol] ?? '').trim() : '';
     if (agentName && managerName) {
-      parsed.push({ agentName, managerName });
+      parsed.push({ agentName, managerName, managerEmail });
     }
   }
 

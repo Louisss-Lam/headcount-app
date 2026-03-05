@@ -8,6 +8,7 @@ const nextConfig = {
     CUSTOM_AWS_REGION: process.env.CUSTOM_AWS_REGION,
     DYNAMODB_TABLE: process.env.DYNAMODB_TABLE,
     SES_FROM_EMAIL: process.env.SES_FROM_EMAIL,
+    APP_URL: process.env.APP_URL,
   },
   experimental: {
     serverComponentsExternalPackages: ['@aws-sdk/client-dynamodb', '@aws-sdk/lib-dynamodb', '@aws-sdk/client-ses'],

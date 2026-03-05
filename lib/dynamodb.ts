@@ -45,6 +45,7 @@ export async function queryManagers(): Promise<Manager[]> {
     .map((item) => ({
       id: item.SK as string,
       full_name: item.full_name as string,
+      email: (item.email as string) || undefined,
       created_at: item.created_at as string,
     }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -81,6 +82,7 @@ export async function getManager(id: string): Promise<Manager | null> {
   return {
     id: result.Item.SK as string,
     full_name: result.Item.full_name as string,
+    email: (result.Item.email as string) || undefined,
     created_at: result.Item.created_at as string,
   };
 }
@@ -133,23 +135,40 @@ async function batchPut(items: Record<string, unknown>[]): Promise<void> {
 }
 
 export async function replaceAllData(
-  rows: { managerName: string; agentName: string }[]
-): Promise<{ managers: { id: string; full_name: string }[]; agentCount: number }> {
+  rows: { managerName: string; agentName: string; managerEmail: string }[]
+): Promise<{ managers: { id: string; full_name: string; email?: string }[]; agentCount: number }> {
   const now = new Date().toISOString();
 
   // 1. Fetch existing managers and build name→id lookup
   const existingManagers = await queryManagers();
   const existingManagerByName = new Map(existingManagers.map((m) => [m.full_name, m.id]));
 
-  // 2. Determine manager IDs (reuse existing or create new)
+  // 2. Build name→email lookup (first non-empty email wins per manager)
+  const managerEmailMap = new Map<string, string>();
+  for (const row of rows) {
+    if (row.managerEmail && !managerEmailMap.has(row.managerName)) {
+      managerEmailMap.set(row.managerName, row.managerEmail);
+    }
+  }
+
+  // 3. Determine manager IDs (reuse existing or create new)
   const newManagerNames = Array.from(new Set(rows.map((r) => r.managerName)));
   const managersMap = new Map<string, string>(); // name → id
   const managerPuts: Record<string, unknown>[] = [];
 
   for (const name of newManagerNames) {
+    const email = managerEmailMap.get(name) || undefined;
     const existingId = existingManagerByName.get(name);
     if (existingId) {
       managersMap.set(name, existingId);
+      // Always re-put to update email
+      managerPuts.push({
+        PK: 'MANAGERS',
+        SK: existingId,
+        full_name: name,
+        ...(email && { email }),
+        created_at: existingManagers.find((m) => m.id === existingId)!.created_at,
+      });
     } else {
       const newId = crypto.randomUUID();
       managersMap.set(name, newId);
@@ -157,12 +176,13 @@ export async function replaceAllData(
         PK: 'MANAGERS',
         SK: newId,
         full_name: name,
+        ...(email && { email }),
         created_at: now,
       });
     }
   }
 
-  // 3. Delete managers no longer in the Excel
+  // 4. Delete managers no longer in the Excel
   const removedManagerKeys: { PK: string; SK: string }[] = [];
   for (const existing of existingManagers) {
     if (!managersMap.has(existing.full_name)) {
@@ -175,7 +195,7 @@ export async function replaceAllData(
     }
   }
 
-  // 4. For each manager, upsert agents (reuse by name, remove stale)
+  // 5. For each manager, upsert agents (reuse by name, remove stale)
   const agentPuts: Record<string, unknown>[] = [];
   const agentDeletes: { PK: string; SK: string }[] = [];
 
@@ -217,13 +237,14 @@ export async function replaceAllData(
     }
   }
 
-  // 5. Execute all writes
+  // 6. Execute all writes
   await batchDelete([...removedManagerKeys, ...agentDeletes]);
   await batchPut([...managerPuts, ...agentPuts]);
 
   const managers = managerEntries.map(([name, id]) => ({
     id,
     full_name: name,
+    email: managerEmailMap.get(name) || undefined,
   }));
 
   return { managers, agentCount: rows.length };
