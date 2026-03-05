@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import type { Manager } from '@/lib/types';
+import { queryManagers } from '@/lib/dynamodb';
 
 export async function GET() {
   try {
-    const db = getDb();
-    const managers = db
-      .prepare('SELECT id, full_name FROM managers ORDER BY full_name')
-      .all() as Manager[];
-
+    const managers = await queryManagers();
     return NextResponse.json({ managers });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch managers';

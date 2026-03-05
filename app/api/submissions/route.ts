@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
 import { CATEGORIES, type Category } from '@/lib/types';
 import { generateExportBuffer } from '@/lib/services/excel-exporter';
 import { sendReportEmail } from '@/lib/services/email';
+import { getManager, getAgent } from '@/lib/dynamodb';
 
 interface SubmissionBody {
-  managerId: number;
-  entries: { agentId: number; category: Category }[];
+  managerId: string;
+  entries: { agentId: string; category: Category }[];
   recipientEmail?: string;
 }
 
@@ -22,32 +22,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getDb();
     const now = new Date();
     const submissionDate = now.toISOString().split('T')[0];
 
-    // Look up manager name
-    const manager = db
-      .prepare('SELECT full_name FROM managers WHERE id = ?')
-      .get(managerId) as { full_name: string };
+    const manager = await getManager(managerId);
+    if (!manager) {
+      return NextResponse.json({ error: 'Manager not found' }, { status: 404 });
+    }
 
-    // Look up agent names for each entry
-    const getAgent = db.prepare('SELECT full_name FROM agents WHERE id = ?');
-
-    const exportRows = entries.map((entry) => {
-      const agent = getAgent.get(entry.agentId) as { full_name: string };
-      return {
-        'Agent Name': agent.full_name,
-        Category: CATEGORIES[entry.category].label,
-        'Manager Name': manager.full_name,
-        Date: submissionDate,
-        Time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-      };
-    });
+    const exportRows = await Promise.all(
+      entries.map(async (entry) => {
+        const agent = await getAgent(managerId, entry.agentId);
+        return {
+          'Agent Name': agent?.full_name ?? 'Unknown',
+          Category: CATEGORIES[entry.category].label,
+          'Manager Name': manager.full_name,
+          Date: submissionDate,
+          Time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        };
+      })
+    );
 
     const excelBuffer = generateExportBuffer(exportRows);
 
-    // Attempt to email the report
     let emailSent = false;
     let emailError: string | undefined;
     const toAddress = recipientEmail?.trim();

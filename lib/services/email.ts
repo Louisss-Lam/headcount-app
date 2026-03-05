@@ -2,10 +2,6 @@ import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
 
 const ses = new SESClient({
   region: process.env.AWS_REGION ?? 'eu-west-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
-  },
 });
 
 interface SendReportEmailParams {
@@ -21,18 +17,7 @@ export async function sendReportEmail({
   submissionDate,
   excelBuffer,
 }: SendReportEmailParams): Promise<void> {
-  // Skip sending when AWS credentials aren't configured
-  if (
-    !process.env.AWS_ACCESS_KEY_ID ||
-    process.env.AWS_ACCESS_KEY_ID === '<your-key>'
-  ) {
-    console.log(
-      `[EMAIL SKIP] Would send report to ${toAddress} for ${managerName} (${submissionDate}). Configure AWS credentials to enable.`
-    );
-    return;
-  }
-
-  const fromAddress = process.env.SES_FROM_EMAIL ?? 'noreply@example.com';
+  const fromAddress = process.env.SES_FROM_EMAIL ?? 'noreply@dwmas.co.uk';
   const boundary = `boundary-${Date.now()}`;
   const filename = `headcount-${managerName.replace(/\s+/g, '_')}-${submissionDate}.xlsx`;
 

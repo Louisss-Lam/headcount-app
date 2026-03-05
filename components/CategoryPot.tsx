@@ -5,7 +5,7 @@ import { CATEGORIES, type Category } from '@/lib/types';
 import AvatarCard from './AvatarCard';
 
 interface AssignedAgent {
-  id: number;
+  id: string;
   full_name: string;
   avatar_seed: string;
 }
@@ -13,7 +13,7 @@ interface AssignedAgent {
 interface CategoryPotProps {
   category: Category;
   agents: AssignedAgent[];
-  onRemoveAgent?: (agentId: number) => void;
+  onRemoveAgent?: (agentId: string) => void;
 }
 
 export default function CategoryPot({ category, agents, onRemoveAgent }: CategoryPotProps) {

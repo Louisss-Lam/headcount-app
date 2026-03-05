@@ -6,7 +6,7 @@ import Link from 'next/link';
 import FileDropZone from '@/components/FileDropZone';
 
 interface ManagerResult {
-  id: number;
+  id: string;
   full_name: string;
 }
 

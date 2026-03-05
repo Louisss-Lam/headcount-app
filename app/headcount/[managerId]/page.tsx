@@ -69,7 +69,7 @@ export default function HeadcountPage() {
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
-      const agentId = Number(String(event.active.id).replace('agent-', ''));
+      const agentId = String(event.active.id).replace('agent-', '');
       const agent = agents.find((a) => a.id === agentId);
       if (agent) setActiveAgent(agent);
     },
@@ -82,7 +82,7 @@ export default function HeadcountPage() {
       const { active, over } = event;
       if (!over) return;
 
-      const agentId = Number(String(active.id).replace('agent-', ''));
+      const agentId = String(active.id).replace('agent-', '');
       const agent = agents.find((a) => a.id === agentId);
       if (!agent) return;
 
@@ -106,7 +106,7 @@ export default function HeadcountPage() {
     [agents]
   );
 
-  const handleRemoveAgent = useCallback((agentId: number) => {
+  const handleRemoveAgent = useCallback((agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
     if (!agent) return;
 
@@ -146,7 +146,7 @@ export default function HeadcountPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          managerId: Number(managerId),
+          managerId,
           entries,
           recipientEmail: recipientEmail.trim() || undefined,
         }),

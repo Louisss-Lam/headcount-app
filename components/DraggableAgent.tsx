@@ -4,7 +4,7 @@ import { useDraggable } from '@dnd-kit/core';
 import AvatarCard from './AvatarCard';
 
 interface DraggableAgentProps {
-  id: number;
+  id: string;
   name: string;
   seed: string;
   animationDelay?: number;

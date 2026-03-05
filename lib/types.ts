@@ -1,13 +1,13 @@
 export interface Manager {
-  id: number;
+  id: string;
   full_name: string;
   created_at: string;
 }
 
 export interface Agent {
-  id: number;
+  id: string;
   full_name: string;
-  manager_id: number;
+  manager_id: string;
   avatar_seed: string;
 }
 
