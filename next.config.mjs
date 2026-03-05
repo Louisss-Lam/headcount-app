@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  skipTrailingSlashRedirect: true,
   env: {
     APP_PASSWORD: process.env.APP_PASSWORD,
   },
