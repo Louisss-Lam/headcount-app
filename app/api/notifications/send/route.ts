@@ -11,35 +11,34 @@ export async function POST() {
 
     const managersWithEmail = managers.filter((m) => m.email && EMAIL_REGEX.test(m.email));
 
-    // Get agent counts for response
     const results: { managerId: string; name: string; email: string; agentCount: number; status: 'sent' | 'failed' | 'no_email' }[] = [];
 
-    // Send emails
-    const sendResults = await Promise.allSettled(
-      managersWithEmail.map(async (m) => {
-        const agents = await queryAgents(m.id);
+    // Send emails — track manager info alongside each promise
+    const sendJobs = managersWithEmail.map(async (m) => {
+      const agents = await queryAgents(m.id);
+      const info = { managerId: m.id, name: m.full_name, email: m.email!, agentCount: agents.length };
+      try {
         await sendNotificationEmail({
           toAddress: m.email!,
           managerName: m.full_name,
           headcountUrl: `${appUrl}/headcount/${m.id}?token=${m.access_token}`,
         });
-        return { managerId: m.id, name: m.full_name, email: m.email!, agentCount: agents.length };
-      })
-    );
+        return { ...info, status: 'sent' as const };
+      } catch (err) {
+        console.error(`Failed to send notification to ${m.full_name}:`, err);
+        return { ...info, status: 'failed' as const };
+      }
+    });
+
+    const sendResults = await Promise.all(sendJobs);
 
     let emailsSent = 0;
     let emailsFailed = 0;
 
     for (const result of sendResults) {
-      if (result.status === 'fulfilled') {
-        emailsSent++;
-        results.push({ ...result.value, status: 'sent' });
-      } else {
-        emailsFailed++;
-        console.error('Failed to send notification:', result.reason);
-        // Try to extract manager info from the error context
-        results.push({ managerId: '', name: 'Unknown', email: '', agentCount: 0, status: 'failed' });
-      }
+      if (result.status === 'sent') emailsSent++;
+      else emailsFailed++;
+      results.push(result);
     }
 
     // Add managers without email

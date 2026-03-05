@@ -132,9 +132,15 @@ function UploadPageContent() {
       }
 
       // Update status for this manager
-      setSendResults((prev) =>
-        prev.map((r) => (r.managerId === managerId ? { ...r, status: 'sent' as const } : r))
-      );
+      setSendResults((prev) => {
+        const exists = prev.some((r) => r.managerId === managerId);
+        if (exists) {
+          return prev.map((r) => (r.managerId === managerId ? { ...r, status: 'sent' as const } : r));
+        }
+        // Manager not in results yet (re-send before "Send All") — add them
+        const mgr = managers.find((m) => m.id === managerId);
+        return [...prev, { managerId, name: mgr?.full_name ?? '', email: mgr?.email ?? '', status: 'sent' as const }];
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to resend notification');
     } finally {

@@ -64,7 +64,12 @@ export default function HeadcountPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ managerId, token }),
-    }).then(() => {
+    }).then((res) => {
+      if (!res.ok) {
+        setError('This link is invalid or has expired. Please request a new one.');
+        setLoading(false);
+        return;
+      }
       setAuthReady(true);
       // Strip token from URL for cleanliness
       router.replace(`/headcount/${managerId}`);
