@@ -46,6 +46,7 @@ export default function HeadcountPage() {
   const [error, setError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [authReady, setAuthReady] = useState(!searchParams.has('token'));
   const tokenAuthDone = useRef(false);
 
   const sensors = useSensors(
@@ -64,12 +65,14 @@ export default function HeadcountPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ managerId, token }),
     }).then(() => {
+      setAuthReady(true);
       // Strip token from URL for cleanliness
       router.replace(`/headcount/${managerId}`);
     });
   }, [managerId, searchParams, router]);
 
   useEffect(() => {
+    if (!authReady) return;
     async function fetchAgents() {
       try {
         const res = await fetch(`/api/managers/${managerId}/agents`);
@@ -84,7 +87,7 @@ export default function HeadcountPage() {
       }
     }
     fetchAgents();
-  }, [managerId]);
+  }, [managerId, authReady]);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
