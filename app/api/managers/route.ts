@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { queryManagers } from '@/lib/dynamodb';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const managers = await queryManagers();
