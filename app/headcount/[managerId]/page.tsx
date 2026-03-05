@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -34,6 +34,7 @@ function emptyAssignments(): Assignments {
 export default function HeadcountPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const managerId = params.managerId as string;
 
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -44,11 +45,29 @@ export default function HeadcountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const tokenAuthDone = useRef(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
+
+  // Auto-authenticate with token from URL (magic link)
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (!token || tokenAuthDone.current) return;
+    tokenAuthDone.current = true;
+
+    fetch('/api/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ managerId, token }),
+    }).then(() => {
+      // Strip token from URL for cleanliness
+      router.replace(`/headcount/${managerId}`);
+    });
+  }, [managerId, searchParams, router]);
 
   useEffect(() => {
     async function fetchAgents() {
@@ -155,13 +174,7 @@ export default function HeadcountPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // Redirect back to upload page with email status
-      const status = data.emailSent
-        ? 'email_sent'
-        : data.emailError
-          ? 'email_failed'
-          : 'no_email';
-      router.push(`/upload?submitted=${status}`);
+      setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed');
     } finally {
@@ -177,6 +190,17 @@ export default function HeadcountPage() {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
         {error}
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <div className="text-center py-16">
+        <div className="inline-block p-6 bg-green-50 border border-green-200 rounded-xl">
+          <h2 className="text-2xl font-bold text-green-800 mb-2">Headcount Submitted!</h2>
+          <p className="text-green-700">Your team&apos;s headcount has been recorded successfully. You can close this page.</p>
+        </div>
       </div>
     );
   }

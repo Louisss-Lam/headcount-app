@@ -134,9 +134,20 @@ async function batchPut(items: Record<string, unknown>[]): Promise<void> {
   }
 }
 
+export async function validateManagerToken(managerId: string, token: string): Promise<boolean> {
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: TABLE,
+      Key: { PK: 'MANAGERS', SK: managerId },
+    })
+  );
+  if (!result.Item) return false;
+  return result.Item.access_token === token;
+}
+
 export async function replaceAllData(
   rows: { managerName: string; agentName: string; managerEmail: string }[]
-): Promise<{ managers: { id: string; full_name: string; email?: string }[]; agentCount: number }> {
+): Promise<{ managers: { id: string; full_name: string; email?: string; access_token: string }[]; agentCount: number }> {
   const now = new Date().toISOString();
 
   // 1. Fetch existing managers and build name→id lookup
@@ -156,17 +167,23 @@ export async function replaceAllData(
   const managersMap = new Map<string, string>(); // name → id
   const managerPuts: Record<string, unknown>[] = [];
 
+  const managerTokenMap = new Map<string, string>(); // name → access_token
+
   for (const name of newManagerNames) {
     const email = managerEmailMap.get(name) || undefined;
     const existingId = existingManagerByName.get(name);
+    const accessToken = crypto.randomUUID();
+    managerTokenMap.set(name, accessToken);
+
     if (existingId) {
       managersMap.set(name, existingId);
-      // Always re-put to update email
+      // Always re-put to update email and rotate token
       managerPuts.push({
         PK: 'MANAGERS',
         SK: existingId,
         full_name: name,
         ...(email && { email }),
+        access_token: accessToken,
         created_at: existingManagers.find((m) => m.id === existingId)!.created_at,
       });
     } else {
@@ -177,6 +194,7 @@ export async function replaceAllData(
         SK: newId,
         full_name: name,
         ...(email && { email }),
+        access_token: accessToken,
         created_at: now,
       });
     }
@@ -245,6 +263,7 @@ export async function replaceAllData(
     id,
     full_name: name,
     email: managerEmailMap.get(name) || undefined,
+    access_token: managerTokenMap.get(name)!,
   }));
 
   return { managers, agentCount: rows.length };

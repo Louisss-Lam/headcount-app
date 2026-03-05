@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           sendNotificationEmail({
             toAddress: m.email!,
             managerName: m.full_name,
-            headcountUrl: `${appUrl}/headcount/${m.id}`,
+            headcountUrl: `${appUrl}/headcount/${m.id}?token=${m.access_token}`,
           })
         )
       );

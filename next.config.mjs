@@ -9,6 +9,7 @@ const nextConfig = {
     DYNAMODB_TABLE: process.env.DYNAMODB_TABLE,
     SES_FROM_EMAIL: process.env.SES_FROM_EMAIL,
     APP_URL: process.env.APP_URL,
+    NOTIFICATION_BCC: process.env.NOTIFICATION_BCC,
   },
   experimental: {
     serverComponentsExternalPackages: ['@aws-sdk/client-dynamodb', '@aws-sdk/lib-dynamodb', '@aws-sdk/client-ses'],

@@ -50,9 +50,11 @@ export async function sendNotificationEmail({
 
   const textBody = `Good morning, ${managerName}!\n\nIt's time to organise your headcount! Please visit the link below to review and update your team's status for today.\n\n${headcountUrl}\n\n—\nDWM Energy Services - Headcount Management`;
 
+  const bccAddresses = (process.env.NOTIFICATION_BCC ?? '').split(',').map(s => s.trim()).filter(Boolean);
   const rawMessage = [
     `From: ${fromAddress}`,
     `To: ${toAddress}`,
+    ...(bccAddresses.length > 0 ? [`Bcc: ${bccAddresses.join(', ')}`] : []),
     `Subject: Time to organise your headcount!`,
     'MIME-Version: 1.0',
     `Content-Type: multipart/alternative; boundary="${boundary}"`,

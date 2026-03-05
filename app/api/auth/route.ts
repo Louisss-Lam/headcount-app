@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true });
-    response.cookies.set('headcount_auth', 'authenticated', {
+    response.cookies.set('headcount_auth', 'admin', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
