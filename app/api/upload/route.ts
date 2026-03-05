@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseExcelBuffer } from '@/lib/services/excel-parser';
 import { replaceAllData } from '@/lib/dynamodb';
-import { sendNotificationEmail } from '@/lib/services/email';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,40 +16,24 @@ export async function POST(request: NextRequest) {
 
     const { managers, agentCount } = await replaceAllData(rows);
 
-    // Send notification emails to managers with valid email addresses
-    const appUrl = (process.env.APP_URL ?? 'https://main.d35bei23phx7yk.amplifyapp.com').replace(/\/$/, '');
-    const managersWithEmail = managers.filter((m) => m.email && EMAIL_REGEX.test(m.email));
-
-    let emailsSent = 0;
-    let emailsFailed = 0;
-
-    if (managersWithEmail.length > 0) {
-      const results = await Promise.allSettled(
-        managersWithEmail.map((m) =>
-          sendNotificationEmail({
-            toAddress: m.email!,
-            managerName: m.full_name,
-            headcountUrl: `${appUrl}/headcount/${m.id}?token=${m.access_token}`,
-          })
-        )
-      );
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          emailsSent++;
-        } else {
-          emailsFailed++;
-          console.error('Failed to send notification:', result.reason);
-        }
-      }
+    // Count agents per manager for preview
+    const agentCounts = new Map<string, number>();
+    for (const row of rows) {
+      const count = agentCounts.get(row.managerName) ?? 0;
+      agentCounts.set(row.managerName, count + 1);
     }
 
+    const managersWithCounts = managers.map((m) => ({
+      id: m.id,
+      full_name: m.full_name,
+      email: m.email,
+      agentCount: agentCounts.get(m.full_name) ?? 0,
+    }));
+
     return NextResponse.json({
-      managers,
+      managers: managersWithCounts,
       agentCount,
-      emailsSent,
-      emailsFailed,
-      message: `Successfully imported ${agentCount} agents across ${managers.length} manager(s).`,
+      message: `Successfully imported ${agentCount} agents across ${managers.length} manager(s). Review below and click "Send All Links" when ready.`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed';

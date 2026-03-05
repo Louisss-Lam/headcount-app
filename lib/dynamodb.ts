@@ -46,6 +46,7 @@ export async function queryManagers(): Promise<Manager[]> {
       id: item.SK as string,
       full_name: item.full_name as string,
       email: (item.email as string) || undefined,
+      access_token: (item.access_token as string) || undefined,
       created_at: item.created_at as string,
     }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -83,6 +84,7 @@ export async function getManager(id: string): Promise<Manager | null> {
     id: result.Item.SK as string,
     full_name: result.Item.full_name as string,
     email: (result.Item.email as string) || undefined,
+    access_token: (result.Item.access_token as string) || undefined,
     created_at: result.Item.created_at as string,
   };
 }

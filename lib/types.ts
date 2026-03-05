@@ -2,6 +2,7 @@ export interface Manager {
   id: string;
   full_name: string;
   email?: string;
+  access_token?: string;
   created_at: string;
 }
 

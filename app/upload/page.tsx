@@ -2,12 +2,20 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import FileDropZone from '@/components/FileDropZone';
 
-interface ManagerResult {
+interface ManagerPreview {
   id: string;
   full_name: string;
+  email?: string;
+  agentCount: number;
+}
+
+interface SendStatus {
+  managerId: string;
+  name: string;
+  email: string;
+  status: 'sent' | 'failed' | 'no_email';
 }
 
 export default function UploadPage() {
@@ -23,10 +31,13 @@ function UploadPageContent() {
   const submitted = searchParams.get('submitted');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [managers, setManagers] = useState<ManagerResult[]>([]);
+  const [managers, setManagers] = useState<ManagerPreview[]>([]);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [notificationInfo, setNotificationInfo] = useState<string | null>(null);
+  const [sendResults, setSendResults] = useState<SendStatus[]>([]);
+  const [sendSummary, setSendSummary] = useState<string | null>(null);
 
   // Fetch existing managers on page load
   useEffect(() => {
@@ -35,7 +46,12 @@ function UploadPageContent() {
         const res = await fetch('/api/managers');
         const data = await res.json();
         if (res.ok && data.managers) {
-          setManagers(data.managers);
+          setManagers(
+            data.managers.map((m: { id: string; full_name: string; email?: string }) => ({
+              ...m,
+              agentCount: 0,
+            }))
+          );
         }
       } catch {
         // ignore — managers will show after upload
@@ -48,7 +64,8 @@ function UploadPageContent() {
     setIsLoading(true);
     setError(null);
     setUploadMessage(null);
-    setNotificationInfo(null);
+    setSendResults([]);
+    setSendSummary(null);
 
     try {
       const formData = new FormData();
@@ -66,30 +83,67 @@ function UploadPageContent() {
       }
 
       setUploadMessage(data.message);
-
-      // Show notification email status
-      const sent = data.emailsSent ?? 0;
-      const failed = data.emailsFailed ?? 0;
-      if (sent > 0 || failed > 0) {
-        let info = `${sent} notification email(s) sent to managers.`;
-        if (failed > 0) {
-          info += ` ${failed} email(s) failed.`;
-        }
-        setNotificationInfo(info);
-      }
-
-      // Refresh manager list after upload
-      const mgrRes = await fetch('/api/managers');
-      const mgrData = await mgrRes.json();
-      if (mgrRes.ok && mgrData.managers) {
-        setManagers(mgrData.managers);
-      }
+      setManagers(data.managers);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSendAll = async () => {
+    setIsSending(true);
+    setError(null);
+    setSendSummary(null);
+
+    try {
+      const res = await fetch('/api/notifications/send', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send notifications');
+      }
+
+      setSendResults(data.results);
+      const sent = data.emailsSent ?? 0;
+      const failed = data.emailsFailed ?? 0;
+      setSendSummary(`${sent} email(s) sent successfully.${failed > 0 ? ` ${failed} failed.` : ''}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send notifications');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleResend = async (managerId: string) => {
+    setResendingId(managerId);
+
+    try {
+      const res = await fetch('/api/notifications/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to resend');
+      }
+
+      // Update status for this manager
+      setSendResults((prev) =>
+        prev.map((r) => (r.managerId === managerId ? { ...r, status: 'sent' as const } : r))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend notification');
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  // Build a lookup from send results
+  const statusByManager = new Map(sendResults.map((r) => [r.managerId, r]));
 
   return (
     <div>
@@ -126,28 +180,86 @@ function UploadPageContent() {
         </div>
       )}
 
-      {notificationInfo && (
+      {sendSummary && (
         <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
-          {notificationInfo}
+          {sendSummary}
         </div>
       )}
 
       {managers.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Select a manager to start headcount:
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {managers.map((manager) => (
-              <Link
-                key={manager.id}
-                href={`/headcount/${manager.id}`}
-                className="p-6 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-center"
-              >
-                <p className="font-medium text-gray-900">{manager.full_name}</p>
-                <p className="text-sm text-blue-600 mt-2">Start headcount &rarr;</p>
-              </Link>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Managers ({managers.length})
+            </h2>
+            <button
+              onClick={handleSendAll}
+              disabled={isSending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              {isSending ? 'Sending...' : 'Send All Links'}
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-700">Manager</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-700">Email</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-700">Agents</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-700">Status</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {managers.map((manager) => {
+                  const status = statusByManager.get(manager.id);
+                  return (
+                    <tr key={manager.id} className="border-b border-gray-100 last:border-0">
+                      <td className="px-4 py-3 font-medium text-gray-900">{manager.full_name}</td>
+                      <td className="px-4 py-3 text-gray-600">{manager.email || '—'}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">
+                        {manager.agentCount > 0 ? manager.agentCount : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {!status && (
+                          <span className="text-gray-400">—</span>
+                        )}
+                        {status?.status === 'sent' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            Sent
+                          </span>
+                        )}
+                        {status?.status === 'failed' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            Failed
+                          </span>
+                        )}
+                        {status?.status === 'no_email' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            No email
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {manager.email ? (
+                          <button
+                            onClick={() => handleResend(manager.id)}
+                            disabled={resendingId === manager.id}
+                            className="px-3 py-1 text-xs font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {resendingId === manager.id ? 'Sending...' : 'Re-send'}
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
