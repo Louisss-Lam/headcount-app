@@ -9,13 +9,15 @@ interface AvatarCardProps {
   seed: string;
   animationDelay?: number;
   isDragging?: boolean;
+  size?: number;
+  nameClass?: string;
 }
 
-export default function AvatarCard({ name, seed, animationDelay = 0, isDragging = false }: AvatarCardProps) {
+export default function AvatarCard({ name, seed, animationDelay = 0, isDragging = false, size = 64, nameClass }: AvatarCardProps) {
   const svgDataUri = useMemo(() => {
-    const avatar = createAvatar(funEmoji, { seed, size: 64 });
+    const avatar = createAvatar(funEmoji, { seed, size });
     return avatar.toDataUri();
-  }, [seed]);
+  }, [seed, size]);
 
   return (
     <div
@@ -28,9 +30,9 @@ export default function AvatarCard({ name, seed, animationDelay = 0, isDragging 
         style={{ animationDelay: `${animationDelay}s` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={svgDataUri} alt={name} width={64} height={64} />
+        <img src={svgDataUri} alt={name} width={size} height={size} />
       </div>
-      <span className="text-xs font-medium text-gray-700 text-center leading-tight max-w-[80px] truncate">
+      <span className={nameClass ?? "text-xs font-medium text-gray-700 text-center leading-tight max-w-[80px] truncate"}>
         {name}
       </span>
     </div>

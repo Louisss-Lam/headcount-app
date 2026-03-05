@@ -18,6 +18,8 @@ import DraggableAgent from '@/components/DraggableAgent';
 import CategoryPot from '@/components/CategoryPot';
 import SubmitBar from '@/components/SubmitBar';
 import AvatarCard from '@/components/AvatarCard';
+import MobileHeadcount from '@/components/MobileHeadcount';
+import useIsMobile from '@/hooks/useIsMobile';
 
 type Assignments = Record<Category, Agent[]>;
 
@@ -48,6 +50,7 @@ export default function HeadcountPage() {
   const [submitted, setSubmitted] = useState(false);
   const [authReady, setAuthReady] = useState(!searchParams.has('token'));
   const tokenAuthDone = useRef(false);
+  const isMobile = useIsMobile();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -150,6 +153,21 @@ export default function HeadcountPage() {
     });
   }, [agents]);
 
+  const handleAssignAgent = useCallback(
+    (agent: Agent, targetCategory: Category) => {
+      setUnassigned((prev) => prev.filter((a) => a.id !== agent.id));
+      setAssignments((prev) => {
+        const next = { ...prev };
+        for (const cat of Object.keys(next) as Category[]) {
+          next[cat] = next[cat].filter((a) => a.id !== agent.id);
+        }
+        next[targetCategory] = [...next[targetCategory], agent];
+        return next;
+      });
+    },
+    []
+  );
+
   const assignedCount = Object.values(assignments).reduce(
     (sum, arr) => sum + arr.length,
     0
@@ -210,6 +228,21 @@ export default function HeadcountPage() {
           <p className="text-green-700">Your team&apos;s headcount has been recorded successfully. You can close this page.</p>
         </div>
       </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <MobileHeadcount
+        agents={agents}
+        assignments={assignments}
+        onAssign={handleAssignAgent}
+        onUnassign={handleRemoveAgent}
+        recipientEmail={recipientEmail}
+        onRecipientEmailChange={setRecipientEmail}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+      />
     );
   }
 
