@@ -9,10 +9,19 @@ import {
 import crypto from 'crypto';
 import type { Manager, Agent } from './types';
 
+const ALLOWED_TABLES = ['HeadcountApp'];
+const TABLE = process.env.DYNAMODB_TABLE ?? 'HeadcountApp';
+
+if (!ALLOWED_TABLES.includes(TABLE)) {
+  throw new Error(
+    `SAFETY: DYNAMODB_TABLE "${TABLE}" is not in the allow-list. ` +
+    `Only these tables are permitted: ${ALLOWED_TABLES.join(', ')}. ` +
+    `This prevents accidental writes to other projects' tables.`
+  );
+}
+
 const client = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'eu-west-1' });
 const docClient = DynamoDBDocumentClient.from(client);
-
-const TABLE = process.env.DYNAMODB_TABLE ?? 'HeadcountApp';
 
 export async function queryManagers(): Promise<Manager[]> {
   const result = await docClient.send(
