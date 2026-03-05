@@ -4,7 +4,6 @@ import {
   QueryCommand,
   GetCommand,
   BatchWriteCommand,
-  ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import crypto from 'crypto';
 import type { Manager, Agent } from './types';
@@ -103,72 +102,24 @@ export async function getAgent(managerId: string, agentId: string): Promise<Agen
   };
 }
 
-async function deleteAllData(): Promise<void> {
-  let lastEvaluatedKey: Record<string, unknown> | undefined;
-
-  do {
-    const scan = await docClient.send(
-      new ScanCommand({
-        TableName: TABLE,
-        ProjectionExpression: 'PK, SK',
-        ExclusiveStartKey: lastEvaluatedKey,
+async function batchDelete(keys: { PK: string; SK: string }[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += 25) {
+    const batch = keys.slice(i, i + 25);
+    await docClient.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [TABLE]: batch.map((key) => ({
+            DeleteRequest: { Key: key },
+          })),
+        },
       })
     );
-
-    const items = scan.Items ?? [];
-    // BatchWrite supports max 25 items per call
-    for (let i = 0; i < items.length; i += 25) {
-      const batch = items.slice(i, i + 25);
-      await docClient.send(
-        new BatchWriteCommand({
-          RequestItems: {
-            [TABLE]: batch.map((item) => ({
-              DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
-            })),
-          },
-        })
-      );
-    }
-
-    lastEvaluatedKey = scan.LastEvaluatedKey;
-  } while (lastEvaluatedKey);
+  }
 }
 
-export async function replaceAllData(
-  rows: { managerName: string; agentName: string }[]
-): Promise<{ managers: { id: string; full_name: string }[]; agentCount: number }> {
-  await deleteAllData();
-
-  const managersMap = new Map<string, string>(); // name -> uuid
-  const now = new Date().toISOString();
-  const writeItems: Record<string, unknown>[] = [];
-
-  for (const row of rows) {
-    let managerId = managersMap.get(row.managerName);
-    if (!managerId) {
-      managerId = crypto.randomUUID();
-      managersMap.set(row.managerName, managerId);
-      writeItems.push({
-        PK: 'MANAGERS',
-        SK: managerId,
-        full_name: row.managerName,
-        created_at: now,
-      });
-    }
-
-    const agentId = crypto.randomUUID();
-    const seed = `${row.agentName}-${row.managerName}`;
-    writeItems.push({
-      PK: `AGENTS#${managerId}`,
-      SK: agentId,
-      full_name: row.agentName,
-      avatar_seed: seed,
-    });
-  }
-
-  // BatchWrite in chunks of 25
-  for (let i = 0; i < writeItems.length; i += 25) {
-    const batch = writeItems.slice(i, i + 25);
+async function batchPut(items: Record<string, unknown>[]): Promise<void> {
+  for (let i = 0; i < items.length; i += 25) {
+    const batch = items.slice(i, i + 25);
     await docClient.send(
       new BatchWriteCommand({
         RequestItems: {
@@ -179,8 +130,98 @@ export async function replaceAllData(
       })
     );
   }
+}
 
-  const managers = Array.from(managersMap.entries()).map(([name, id]) => ({
+export async function replaceAllData(
+  rows: { managerName: string; agentName: string }[]
+): Promise<{ managers: { id: string; full_name: string }[]; agentCount: number }> {
+  const now = new Date().toISOString();
+
+  // 1. Fetch existing managers and build name→id lookup
+  const existingManagers = await queryManagers();
+  const existingManagerByName = new Map(existingManagers.map((m) => [m.full_name, m.id]));
+
+  // 2. Determine manager IDs (reuse existing or create new)
+  const newManagerNames = Array.from(new Set(rows.map((r) => r.managerName)));
+  const managersMap = new Map<string, string>(); // name → id
+  const managerPuts: Record<string, unknown>[] = [];
+
+  for (const name of newManagerNames) {
+    const existingId = existingManagerByName.get(name);
+    if (existingId) {
+      managersMap.set(name, existingId);
+    } else {
+      const newId = crypto.randomUUID();
+      managersMap.set(name, newId);
+      managerPuts.push({
+        PK: 'MANAGERS',
+        SK: newId,
+        full_name: name,
+        created_at: now,
+      });
+    }
+  }
+
+  // 3. Delete managers no longer in the Excel
+  const removedManagerKeys: { PK: string; SK: string }[] = [];
+  for (const existing of existingManagers) {
+    if (!managersMap.has(existing.full_name)) {
+      removedManagerKeys.push({ PK: 'MANAGERS', SK: existing.id });
+      // Also delete all their agents
+      const oldAgents = await queryAgents(existing.id);
+      for (const agent of oldAgents) {
+        removedManagerKeys.push({ PK: `AGENTS#${existing.id}`, SK: agent.id });
+      }
+    }
+  }
+
+  // 4. For each manager, upsert agents (reuse by name, remove stale)
+  const agentPuts: Record<string, unknown>[] = [];
+  const agentDeletes: { PK: string; SK: string }[] = [];
+
+  const managerEntries = Array.from(managersMap.entries());
+  for (const [managerName, managerId] of managerEntries) {
+    const newAgentNames = rows
+      .filter((r) => r.managerName === managerName)
+      .map((r) => r.agentName);
+
+    // Fetch existing agents for this manager
+    const existingAgents = await queryAgents(managerId);
+    const existingAgentByName = new Map(existingAgents.map((a) => [a.full_name, a]));
+
+    // Track which names we've seen
+    const seenNames = new Set<string>();
+
+    for (const agentName of newAgentNames) {
+      if (seenNames.has(agentName)) continue; // skip duplicates
+      seenNames.add(agentName);
+
+      const existing = existingAgentByName.get(agentName);
+      if (!existing) {
+        // New agent — create
+        agentPuts.push({
+          PK: `AGENTS#${managerId}`,
+          SK: crypto.randomUUID(),
+          full_name: agentName,
+          avatar_seed: `${agentName}-${managerName}`,
+        });
+      }
+      // Existing agent — keep as-is (same ID, same avatar)
+    }
+
+    // Delete agents no longer in the Excel
+    for (const existing of existingAgents) {
+      if (!seenNames.has(existing.full_name)) {
+        agentDeletes.push({ PK: `AGENTS#${managerId}`, SK: existing.id });
+      }
+    }
+  }
+
+  // 5. Execute all writes
+  await batchDelete([...removedManagerKeys, ...agentDeletes]);
+  await batchPut([...managerPuts, ...agentPuts]);
+
+  const managers = managerEntries.map(([name, id]) => ({
     id,
     full_name: name,
   }));
