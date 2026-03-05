@@ -20,7 +20,17 @@ if (!ALLOWED_TABLES.includes(TABLE)) {
   );
 }
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'eu-west-1' });
+const credentials = process.env.CUSTOM_AWS_ACCESS_KEY_ID
+  ? {
+      accessKeyId: process.env.CUSTOM_AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.CUSTOM_AWS_SECRET_ACCESS_KEY!,
+    }
+  : undefined;
+
+const client = new DynamoDBClient({
+  region: process.env.CUSTOM_AWS_REGION ?? process.env.AWS_REGION ?? 'eu-west-1',
+  ...(credentials && { credentials }),
+});
 const docClient = DynamoDBDocumentClient.from(client);
 
 export async function queryManagers(): Promise<Manager[]> {

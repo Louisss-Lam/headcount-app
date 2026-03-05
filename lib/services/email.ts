@@ -1,7 +1,15 @@
 import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
 
+const credentials = process.env.CUSTOM_AWS_ACCESS_KEY_ID
+  ? {
+      accessKeyId: process.env.CUSTOM_AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.CUSTOM_AWS_SECRET_ACCESS_KEY!,
+    }
+  : undefined;
+
 const ses = new SESClient({
-  region: process.env.AWS_REGION ?? 'eu-west-1',
+  region: process.env.CUSTOM_AWS_REGION ?? process.env.AWS_REGION ?? 'eu-west-1',
+  ...(credentials && { credentials }),
 });
 
 interface SendReportEmailParams {
