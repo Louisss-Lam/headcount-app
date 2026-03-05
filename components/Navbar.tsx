@@ -1,15 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const links = [
-  { href: '/', label: 'Home' },
   { href: '/upload', label: 'Upload' },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    router.push('/login');
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-3">
@@ -17,7 +22,7 @@ export default function Navbar() {
         <Link href="/" className="text-xl font-bold text-gray-900">
           Headcount Tracker
         </Link>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -31,6 +36,12 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          <button
+            onClick={handleLogout}
+            className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </nav>
