@@ -1,13 +1,12 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/upload';
 
@@ -24,7 +23,8 @@ function LoginForm() {
       });
 
       if (res.ok) {
-        router.push(redirectTo);
+        window.location.href = redirectTo;
+        return;
       } else {
         const data = await res.json();
         setError(data.error || 'Incorrect password');

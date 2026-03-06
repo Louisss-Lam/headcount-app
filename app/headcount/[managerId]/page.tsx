@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -35,7 +35,6 @@ function emptyAssignments(): Assignments {
 
 export default function HeadcountPage() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const managerId = params.managerId as string;
 
@@ -74,10 +73,10 @@ export default function HeadcountPage() {
         return;
       }
       setAuthReady(true);
-      // Strip token from URL for cleanliness
-      router.replace(`/headcount/${managerId}`);
+      // Strip token from URL with full reload to ensure cookie is sent
+      window.location.replace(`/headcount/${managerId}`);
     });
-  }, [managerId, searchParams, router]);
+  }, [managerId, searchParams]);
 
   useEffect(() => {
     if (!authReady) return;

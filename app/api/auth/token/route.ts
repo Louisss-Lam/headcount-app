@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set('headcount_auth', `manager:${managerId}`, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 1 day
       path: '/',
     });
