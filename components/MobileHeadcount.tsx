@@ -36,8 +36,6 @@ interface MobileHeadcountProps {
   assignments: Assignments;
   onAssign: (agent: Agent, category: Category) => void;
   onUnassign: (agentId: string) => void;
-  recipientEmail: string;
-  onRecipientEmailChange: (email: string) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
@@ -51,7 +49,12 @@ function findAgentCategory(agent: Agent, assignments: Assignments): Category | n
 
 function MiniAvatar({ seed, name }: { seed: string; name: string }) {
   const uri = useMemo(() => {
-    return createAvatar(funEmoji, { seed, size: 32 }).toDataUri();
+    return createAvatar(funEmoji, {
+      seed,
+      size: 32,
+      mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
+      eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
+    }).toDataUri();
   }, [seed]);
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -64,8 +67,6 @@ export default function MobileHeadcount({
   assignments,
   onAssign,
   onUnassign,
-  recipientEmail,
-  onRecipientEmailChange,
   onSubmit,
   isSubmitting,
 }: MobileHeadcountProps) {
@@ -196,24 +197,6 @@ export default function MobileHeadcount({
             </div>
           </div>
         )}
-
-        {/* Email input */}
-        <div className="mb-5 mt-6">
-          <label htmlFor="mobileRecipientEmail" className="block text-sm font-medium text-gray-700 mb-1">
-            Send report to
-          </label>
-          <input
-            id="mobileRecipientEmail"
-            type="email"
-            placeholder="e.g. manager@company.com"
-            value={recipientEmail}
-            onChange={(e) => onRecipientEmailChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          {!recipientEmail.trim() && (
-            <p className="mt-1 text-xs text-gray-400">Leave empty to skip emailing the report.</p>
-          )}
-        </div>
 
         {/* Submit */}
         <button

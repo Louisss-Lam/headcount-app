@@ -45,7 +45,7 @@ export default function SubmitBar({
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit & Email'}
+            {isSubmitting ? 'Submitting...' : 'Submit Headcount'}
           </button>
         </div>
       </div>

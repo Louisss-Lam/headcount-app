@@ -15,7 +15,12 @@ interface AvatarCardProps {
 
 export default function AvatarCard({ name, seed, animationDelay = 0, isDragging = false, size = 64, nameClass }: AvatarCardProps) {
   const svgDataUri = useMemo(() => {
-    const avatar = createAvatar(funEmoji, { seed, size });
+    const avatar = createAvatar(funEmoji, {
+      seed,
+      size,
+      mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
+      eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
+    });
     return avatar.toDataUri();
   }, [seed, size]);
 

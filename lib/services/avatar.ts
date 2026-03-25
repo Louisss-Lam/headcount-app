@@ -5,6 +5,8 @@ export function generateAvatarSvg(seed: string): string {
   const avatar = createAvatar(funEmoji, {
     seed,
     size: 64,
+    mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
+    eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
   });
   return avatar.toString();
 }

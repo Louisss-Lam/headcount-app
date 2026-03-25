@@ -10,9 +10,13 @@ const nextConfig = {
     SES_FROM_EMAIL: process.env.SES_FROM_EMAIL,
     APP_URL: process.env.APP_URL,
     NOTIFICATION_BCC: process.env.NOTIFICATION_BCC,
+    SUBMISSION_EMAILS: process.env.SUBMISSION_EMAILS,
+    GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+    GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID,
   },
   experimental: {
-    serverComponentsExternalPackages: ['@aws-sdk/client-dynamodb', '@aws-sdk/lib-dynamodb', '@aws-sdk/client-ses'],
+    serverComponentsExternalPackages: ['@aws-sdk/client-dynamodb', '@aws-sdk/lib-dynamodb', '@aws-sdk/client-ses', 'googleapis'],
   },
 };
 

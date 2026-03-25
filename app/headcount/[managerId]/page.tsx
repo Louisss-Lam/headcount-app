@@ -45,7 +45,6 @@ export default function HeadcountPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recipientEmail, setRecipientEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [authReady, setAuthReady] = useState(!searchParams.has('token'));
   const tokenAuthDone = useRef(false);
@@ -189,11 +188,7 @@ export default function HeadcountPage() {
       const res = await fetch('/api/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          managerId,
-          entries,
-          recipientEmail: recipientEmail.trim() || undefined,
-        }),
+        body: JSON.stringify({ managerId, entries }),
       });
 
       const data = await res.json();
@@ -237,8 +232,6 @@ export default function HeadcountPage() {
         assignments={assignments}
         onAssign={handleAssignAgent}
         onUnassign={handleRemoveAgent}
-        recipientEmail={recipientEmail}
-        onRecipientEmailChange={setRecipientEmail}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
       />
@@ -248,24 +241,6 @@ export default function HeadcountPage() {
   return (
     <div className="pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Assign Headcount</h1>
-
-      {/* Email recipient */}
-      <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200">
-        <label htmlFor="recipientEmail" className="block text-sm font-medium text-gray-700 mb-1">
-          Send report to
-        </label>
-        <input
-          id="recipientEmail"
-          type="email"
-          placeholder="e.g. manager@company.com"
-          value={recipientEmail}
-          onChange={(e) => setRecipientEmail(e.target.value)}
-          className="w-full sm:w-96 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        {!recipientEmail.trim() && (
-          <p className="mt-1 text-xs text-gray-400">Leave empty to skip emailing the report.</p>
-        )}
-      </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* Unassigned agents */}

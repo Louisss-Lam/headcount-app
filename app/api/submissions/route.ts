@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CATEGORIES, type Category } from '@/lib/types';
 import { generateExportBuffer } from '@/lib/services/excel-exporter';
 import { sendReportEmail } from '@/lib/services/email';
+import { appendToSheet } from '@/lib/services/google-sheets';
 import { getManager, getAgent } from '@/lib/dynamodb';
 
 interface SubmissionBody {
   managerId: string;
   entries: { agentId: string; category: Category }[];
-  recipientEmail?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: SubmissionBody = await request.json();
-    const { managerId, entries, recipientEmail } = body;
+    const { managerId, entries } = body;
 
     if (!managerId || !entries || entries.length === 0) {
       return NextResponse.json(
@@ -45,11 +45,17 @@ export async function POST(request: NextRequest) {
 
     const excelBuffer = generateExportBuffer(exportRows);
 
-    let emailSent = false;
-    let emailError: string | undefined;
-    const toAddress = recipientEmail?.trim();
+    // Send report to all addresses in the distribution list
+    const submissionEmails = (process.env.SUBMISSION_EMAILS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    if (toAddress) {
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    const emailErrors: string[] = [];
+
+    for (const toAddress of submissionEmails) {
       try {
         await sendReportEmail({
           toAddress,
@@ -57,16 +63,45 @@ export async function POST(request: NextRequest) {
           submissionDate,
           excelBuffer,
         });
-        emailSent = true;
+        emailsSent++;
       } catch (err) {
-        emailError = err instanceof Error ? err.message : 'Email sending failed';
+        emailsFailed++;
+        emailErrors.push(`${toAddress}: ${err instanceof Error ? err.message : 'failed'}`);
+      }
+    }
+
+    // Append to Google Sheet if configured
+    let sheetAppended = false;
+    let sheetError: string | undefined;
+    const sheetId = process.env.GOOGLE_SHEETS_ID;
+
+    if (sheetId) {
+      try {
+        const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        await appendToSheet(
+          sheetId,
+          exportRows.map((r) => ({
+            date: r.Date,
+            time,
+            managerName: r['Manager Name'],
+            agentName: r['Agent Name'],
+            category: r.Category,
+          }))
+        );
+        sheetAppended = true;
+      } catch (err) {
+        sheetError = err instanceof Error ? err.message : 'Google Sheets append failed';
+        console.error('Google Sheets error:', sheetError);
       }
     }
 
     return NextResponse.json({
       message: 'Submission completed',
-      emailSent,
-      emailError,
+      emailsSent,
+      emailsFailed,
+      emailErrors: emailErrors.length > 0 ? emailErrors : undefined,
+      sheetAppended,
+      sheetError,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Submission failed';
