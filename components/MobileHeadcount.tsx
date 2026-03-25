@@ -53,7 +53,7 @@ function MiniAvatar({ seed, name }: { seed: string; name: string }) {
       seed,
       size: 32,
       mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
-      eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
+      eyes: ['wink', 'cute', 'love', 'wink2', 'glasses', 'stars'],
     }).toDataUri();
   }, [seed]);
   return (

@@ -6,7 +6,7 @@ export function generateAvatarSvg(seed: string): string {
     seed,
     size: 64,
     mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
-    eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
+    eyes: ['wink', 'cute', 'love', 'wink2', 'glasses', 'stars'],
   });
   return avatar.toString();
 }

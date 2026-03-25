@@ -19,7 +19,7 @@ export default function AvatarCard({ name, seed, animationDelay = 0, isDragging 
       seed,
       size,
       mouth: ['lilSmile', 'cute', 'wideSmile', 'smileTeeth', 'smileLol', 'tongueOut', 'kissHeart'],
-      eyes: ['wink', 'cute', 'love', 'ppiiu', 'wink2', 'glasses'],
+      eyes: ['wink', 'cute', 'love', 'wink2', 'glasses', 'stars'],
     });
     return avatar.toDataUri();
   }, [seed, size]);
